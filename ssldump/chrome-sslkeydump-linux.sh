@@ -4,4 +4,4 @@ export SSLKEYLOGFILE=~/SSLKEYFILE
 killall -9 chrome
 # open chrome or chromium with webrtc internals and the page with the goto sessions 
 #chromium
-google-chrome "chrome://webrtc-internals" "https://app.goto.com/meeting/957100141"
+google-chrome "https://app.goto.com/meeting/957100141"
