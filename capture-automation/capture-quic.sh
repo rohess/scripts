@@ -28,12 +28,7 @@ if [[ "$OS" == "Darwin" ]]; then
   CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
   EDGE="${EDGE:-/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge}"
   FIREFOX="${FIREFOX:-/Applications/Firefox.app/Contents/MacOS/firefox}"
-  for bin in "$DUMPCAP" "$EDITCAP"; do
-    if [[ ! -x "$bin" ]]; then
-      echo "ERROR: not executable: $bin"
-      exit 1
-    fi
-  done
+
   sudo dscacheutil -flushcache
 
 elif [[ "$OS" == "Linux" ]]; then
@@ -52,7 +47,7 @@ fi
 # ---------- start capture ----------
 echo "$DUMPCAP"
 CAP_LOG="dumpcap_${TS}.log"
-sudo "$DUMPCAP" -i en0 -Z "$USER" -w "$PCAP_RAW" >"$CAP_LOG" &
+sudo "$DUMPCAP" -i en0 -w "$PCAP_RAW" >"$CAP_LOG" &
 CAP_PID=$!
 sleep 2
 
@@ -64,6 +59,7 @@ case "$BROWSER" in
       --no-first-run \
       --enable-quic \
       --origin-to-force-quic-on="$HOST:443" \
+      --disable-features=EncryptedClientHello \
       "$URL" >/dev/null 2>&1 &
     ;;
   edge)
@@ -96,6 +92,7 @@ kill "$BROWSER_PID" 2>/dev/null
 sudo kill "$CAP_PID"
 
 # ---------- inject secrets ----------
+sudo chown "$USER" "$PCAP_RAW"
 "$EDITCAP" --inject-secrets tls,"$KEYS" "$PCAP_RAW" "$PCAP_FINAL"
 
 echo "PCAP (raw):        $PCAP_RAW"
