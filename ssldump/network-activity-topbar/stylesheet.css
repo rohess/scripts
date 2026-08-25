@@ -1,0 +1,11 @@
+.netspeed-box {
+    spacing: 6px;
+}
+
+.netspeed-label {
+    /* Monospace keeps the labels from jittering as digits change width. */
+    font-family: monospace;
+    font-size: 0.8em;
+    min-width: 76px;
+    text-align: right;
+}
