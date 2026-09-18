@@ -14,5 +14,7 @@ start chrome.exe
 REM alternatively you can qualify your full path - but this is system dependend
 REM "C:\Program Files\Google\Chrome\Application\chrome.exe"
 
+REM start capture via dumbcap
+
 REM keep shell open to see what has happened in case of errors 
 pause
