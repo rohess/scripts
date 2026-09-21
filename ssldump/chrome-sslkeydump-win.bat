@@ -27,13 +27,15 @@ set SSLKEYLOGFILE=%BASE%.keys
 
 echo kill running chromes
 taskkill /F /IM chrome.exe >nul 2>&1
-timeout 2 >nul
+timeout 3 >nul
 
 echo clear DNS
 ipconfig /flushdns
 
 REM start capture - filter some noise, keep mdns udp 5353 to see what we see
 start "dumpcap" "%WS%\dumpcap.exe" -i %IFACE% -f "(not broadcast and not multicast and not port 3389) or udp port 5353" -w "%BASE%.pcapng"
+
+timeout 3 >nul
 
 start "" chrome.exe ^
   --user-data-dir=C:\demo-profile ^
