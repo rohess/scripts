@@ -15,10 +15,13 @@ set WS=C:\Program Files\Wireshark
 set IFACE=ethernet
 
 REM Google Meet
-REM set URL=https://meet.google.com/eve-baez-bye
+REM set "URL=https://meet.google.com/eve-baez-bye"
 
 REM MS Teams
-set "URL=https://teams.live.com/meet/9360936935810?p=ALos3Pb6N8Gm9Oq0l2&launchType=web&launchAgent=join_launcher_web&lightExperience=true"
+REM set "URL=https://teams.live.com/meet/9360936935810?p=ALos3Pb6N8Gm9Oq0l2&launchType=web&launchAgent=join_launcher_web&lightExperience=true"
+
+REM Webex
+set "URL=https://meet1754097804582-5056.webex.com/meet/pr27407883594"
 
 echo "%URL%"
 
