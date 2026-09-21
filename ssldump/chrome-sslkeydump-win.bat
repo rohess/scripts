@@ -13,7 +13,15 @@ if "%LABEL%"=="" set LABEL=meet
 set CAPDIR=C:\temp\cap
 set WS=C:\Program Files\Wireshark
 set IFACE=ethernet
-set URL=https://meet.google.com/eve-baez-bye
+
+REM Google Meet
+REM set URL=https://meet.google.com/eve-baez-bye
+
+REM MS Teams
+set "URL=https://teams.live.com/meet/9360936935810?p=ALos3Pb6N8Gm9Oq0l2&launchType=web&launchAgent=join_launcher_web&lightExperience=true"
+
+echo "%URL%"
+
 REM -------------------------------------------------------------------
 
 if not exist "%CAPDIR%" mkdir "%CAPDIR%"
