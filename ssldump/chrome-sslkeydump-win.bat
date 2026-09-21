@@ -1,56 +1,68 @@
 @ECHO OFF
+setlocal
 
-REM Windows script for Webconferencing cpature automation
-REM cleans up everything, starts capture as well as chrome with parameters, finishes on keypress
+REM Windows script for Webconferencing capture automation
+REM cleans up everything, starts capture as well as chrome with parameters,
+REM finishes on keypress and embeds the TLS keys into the capture (DSB)
 REM PARAMETER (optional): first part of capture file name
-REM TODO: move hardcoded stuff to variables
 REM ###############################
 
-
-REM Name for capture - could be "teams", "meet", etc
-
+REM ---- configuration -----------------------------------------------
 set LABEL=%~1
 if "%LABEL%"=="" set LABEL=meet
+set CAPDIR=C:\temp\cap
+set WS=C:\Program Files\Wireshark
+set IFACE=ethernet
+set URL=https://meet.google.com/eve-baez-bye
+REM -------------------------------------------------------------------
 
-REM make sure you can write there
-if not exist c:\temp  mkdir c:\temp
+if not exist "%CAPDIR%" mkdir "%CAPDIR%"
 
-REM name of file is arbitrary - just make sure its configured 
-REM in Wireshark under protocols/TLS as (Pre)-Master-Secret logfile name
-set SSLKEYLOGFILE=C:\temp\SSLKEYFILE
+REM timestamp - "date" doesn't cut it
+for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set TS=%%i
+set BASE=%CAPDIR%\%LABEL%_%TS%
 
-REM make sure Chrome is not already running
-echo "kill running chromes"
-Taskkill /F /IM chrome.exe
+REM one key log per take - Chrome only ever appends to this file
+set SSLKEYLOGFILE=%BASE%.keys
 
-echo "clear DNS"
+echo kill running chromes
+taskkill /F /IM chrome.exe >nul 2>&1
+timeout 2 >nul
+
+echo clear DNS
 ipconfig /flushdns
 
+REM start capture - filter some noise, keep mdns udp 5353 to see what we see
+start "dumpcap" "%WS%\dumpcap.exe" -i %IFACE% -f "(not broadcast and not multicast and not port 3389) or udp port 5353" -w "%BASE%.pcapng"
 
-REM start capture via dumpcap - filter some noise, keep mdns udp 5353 to see what we see
-REM create timestamp - wild PS magic, but "date" doesn't cut it
-for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set TS=%%i
-
-start "dumpcap" "C:\Program Files\Wireshark\dumpcap.exe"   -i ethernet -f "(not broadcast and not multicast and not port 3389) or udp port 5353" -w "c:\temp\cap\%LABEL%_%TS%.pcapng"
-
-REM start searches for chrome.exe, regardless where it is
-REM start chrome.exe
-
-start ""  chrome.exe ^
+start "" chrome.exe ^
   --user-data-dir=C:\demo-profile ^
   --disable-extensions ^
   --use-fake-device-for-media-stream ^
   --use-fake-ui-for-media-stream ^
   --remote-debugging-port=9222 ^
   --window-position=0,0 --window-size=960,1040 ^
-  "https://meet.google.com/eve-baez-bye"
+  "%URL%"
 
-timeout  3 >nul
+timeout 3 >nul
 powershell -NoProfile -Command "Invoke-RestMethod -Method Put -Uri 'http://127.0.0.1:9222/json/new?chrome://webrtc-internals/' | Out-Null"
 
+echo Press a key to stop capture
+pause >nul
 
-REM keep shell open as long as capture needs to run
-echo "Stop capture"
-pause
+REM manually close Chrome first so the key log is complete, then stop capture - or not, works also otherwise
+REM taskkill /IM chrome.exe >nul 2>&1
+REM timeout 2 >nul
+taskkill /IM dumpcap.exe /F >nul 2>&1
+timeout 1 >nul
 
-taskkill /im dumpcap.exe /f
+REM embed TLS secrets into the pcapng
+if exist "%SSLKEYLOGFILE%" (
+  "%WS%\editcap.exe" --inject-secrets "tls,%SSLKEYLOGFILE%" "%BASE%.pcapng" "%BASE%_dsb.pcapng"
+  echo Written: %BASE%_dsb.pcapng
+  del "%BASE%.pcapng"
+) else (
+  echo No key log found - capture left without secrets: %BASE%.pcapng
+)
+
+endlocal
