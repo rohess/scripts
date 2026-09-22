@@ -21,7 +21,13 @@ REM MS Teams
 REM set "URL=https://teams.live.com/meet/9360936935810?p=ALos3Pb6N8Gm9Oq0l2&launchType=web&launchAgent=join_launcher_web&lightExperience=true"
 
 REM Webex
-set "URL=https://meet1754097804582-5056.webex.com/meet/pr27407883594"
+REM set "URL=https://meet1754097804582-5056.webex.com/meet/pr27407883594"
+
+REM Zoom link for autojoin sans PW unique per host meeting run and need to be refreshed
+REM set "URL=https://app.zoom.us/wc/4846855567/join?ref_from=launch&fromPWA=1&pwd=fdrLJDiakJcXIeyUlxPUrNv3YmozIU.1"
+
+REM Goto
+set "URL=https://app.goto.com/meeting/907582909"
 
 echo "%URL%"
 
