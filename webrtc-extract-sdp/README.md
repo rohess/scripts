@@ -1,6 +1,9 @@
 # extract_sdp
 
 Pull WebRTC **SDP offers and answers** out of a TLS-decrypted packet capture and save each one as a clean, readable `.sdp` file.
+As different products use different ways to transport SDP, there are different scripts.
+- Goto TLS/H2 as text sdp
+- Google Meet TLS/H2/Protobuf
 
 WebRTC leaves signalling to the vendor, so the SDP rarely shows up as "SDP" in Wireshark. It is usually a JSON string inside a WebSocket or HTTP/2 message, often with escaped `\r\n` line breaks, sometimes JSON-encoded twice, and sometimes nested deep inside a vendor's own message envelope. `extract_sdp.py` finds it anyway, without needing to know the vendor's field names.
 
