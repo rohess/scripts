@@ -10,6 +10,7 @@ WebRTC leaves signalling to the vendor, so the SDP rarely shows up as "SDP" in W
 | `meet-exctract-sdp.py` | Google Meet | TLS / HTTP/2 / protobuf (no SDP on the wire) |
 | `webrtc-sdp_in_meet.lua` | Google Meet, inside Wireshark | Same decoding as a Wireshark Lua plugin |
 | `teams-extract-sdp.py` | Microsoft Teams | Offer: TLS / HTTP/2 / JSON. Answer: TLS / WebSocket (Trouter) / base64+gzip JSON |
+| `webrtc-sdp_in_teams.lua` | Microsoft Teams, inside Wireshark | Same decoding as a Wireshark Lua plugin |
 
 ## Requirements
 
@@ -251,6 +252,37 @@ Output per call leg (`NN` = leg number):
 - Tested with the Teams web client joining a consumer (teams.live.com) meeting. Other clients or tenants may use other callbacks (e.g. `call/mediaAnswer`, renegotiation); they are picked up as long as the SDP sits in a JSON string starting with `v=0`.
 - The `.json` files contain the meeting URL, passcode and participant IDs. Review them before sharing.
 - Trickled candidates were not seen in the test capture, so only the candidates inside the SDP are shown.
+
+### Wireshark plugin: webrtc-sdp_in_teams.lua
+
+[webrtc-sdp_in_teams.lua](webrtc-sdp_in_teams.lua) does the same inside Wireshark. It finds the offer in the HTTP/2 join request and the answer in the Trouter `call/acceptance` callback (decoding base64/gzip), and passes both to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work. The SDP also appears as an extra bytes tab (`Teams SDP offer` / `Teams SDP answer`); select *Session Description Protocol* and use File → Export Packet Bytes to save it.
+
+Install: copy it to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. It needs decrypted TLS and the default HTTP/2 settings (body reassembly). No other preferences are needed.
+
+Next to the SDP, the `sdp_in_teams` tree shows the JSON path, `mediaLegId` with a link to the matching offer/answer frame and the offer→answer delay, ICE/DTLS values, candidates, and one entry per m-section with SDP direction, effective direction from `mediaDescriptions`, `x-ssrc-range` and codecs. Notes flag the backslash extmap URIs and `mediaParameter`.
+
+A second protocol, `teams_trouter`, annotates every Trouter WebSocket message (socket.io frame type, event name, method, URL, callback name, link token, status, chain ID) and shows the decoded callback body as a JSON tree.
+
+```
+sdp_in_teams                                   frames carrying a Teams offer/answer
+sdp_in_teams.type == "answer"
+sdp_in_teams.mid.effective_direction == "recvonly"
+teams_trouter.callback == "call/acceptance"
+teams_trouter.event == "trouter.connected"
+sdp.media_attr contains "x-ssrc-range"
+```
+
+With tshark:
+
+```
+$ tshark -X lua_script:webrtc-sdp_in_teams.lua -r test-data/teams_signaling.pcapng -Y sdp_in_teams
+ 1283 34.879994300 192.168.102.78 → 98.66.218.35 HTTP2/JSON/SDP 273 DATA[19], JSON (application/json) [Teams SDP offer]
+ 1385 35.796205700 72.144.120.211 → 192.168.102.78 WebSocket/JSON/SDP 959 WebSocket Text [FIN]  [Trouter call/acceptance], JSON [Teams SDP answer]
+
+$ tshark -2 -X lua_script:webrtc-sdp_in_teams.lua -r test-data/teams_signaling.pcapng -Y sdp_in_teams -O sdp_in_teams,teams_trouter,sdp
+```
+
+Use `-2` (two-pass) to get the *Answer in* link on the offer frame as well.
 
 ## Preparing a capture
 
