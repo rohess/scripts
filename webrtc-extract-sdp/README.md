@@ -8,6 +8,7 @@ WebRTC leaves signalling to the vendor, so the SDP rarely shows up as "SDP" in W
 |---|---|---|
 | `goto-extract_sdp.py` | GoTo (and other JSON-based signalling) | TLS / WebSocket or HTTP/2 / JSON containing SDP text |
 | `meet-exctract-sdp.py` | Google Meet | TLS / HTTP/2 / protobuf (no SDP on the wire) |
+| `webrtc-sdp_in_meet.lua` | Google Meet, inside Wireshark | Same decoding as a Wireshark Lua plugin |
 
 ## Requirements
 
@@ -145,6 +146,31 @@ Output per `CreateMediaSession` call (`NN` = call number):
 
 - Protobuf field meanings are reverse-engineered from a single capture; guesses (e.g. DTLS setup mapping, BUNDLE, sctp-port) are marked with `;` in the output. The result is for reading, not for feeding into a WebRTC stack.
 - Google may change the RPC or message layout at any time.
+
+### Wireshark plugin: webrtc-sdp_in_meet.lua
+
+[webrtc-sdp_in_meet.lua](webrtc-sdp_in_meet.lua) does the same decoding inside Wireshark. On the HTTP/2 DATA frames of `CreateMediaSession` it renders the offer and answer as SDP and passes them to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work. The rendered SDP also appears as an extra bytes tab (`Meet SDP offer` / `Meet SDP answer`).
+
+Install: copy it to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. It needs decrypted TLS and the default HTTP/2 settings (body reassembly and decompression). No other preferences are needed.
+
+Next to the SDP, the `sdp_in_meet` tree shows the ICE/DTLS values, candidates, the pre-negotiated data channels, notes on guessed mappings (kept out of the SDP so it parses cleanly) and protobuf fields with no SDP equivalent.
+
+```
+sdp_in_meet                                  frames carrying the Meet offer/answer
+sdp_in_meet.type == "answer"
+sdp_in_meet.datachannel.label == "dcrpc"
+sdp.media_attr contains "candidate"
+```
+
+With tshark:
+
+```
+$ tshark -X lua_script:webrtc-sdp_in_meet.lua -r test-data/meet9_signaling.pcapng -Y sdp_in_meet
+  641 0.899262800 192.168.102.77 → 142.251.155.5 HTTP2/PB(<UNKNOWN>)/SDP 1243 DATA[53] (PROTOBUF) [Meet SDP offer]
+  804 1.040942600 142.251.155.5 → 192.168.102.77 HTTP2/SDP 189 DATA[53] (text/plain) [Meet SDP answer]
+
+$ tshark -X lua_script:webrtc-sdp_in_meet.lua -r test-data/meet9_signaling.pcapng -Y sdp_in_meet -O sdp_in_meet,sdp
+```
 
 ## Preparing a capture
 
