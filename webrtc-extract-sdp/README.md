@@ -9,6 +9,7 @@ WebRTC leaves signalling to the vendor, so the SDP rarely shows up as "SDP" in W
 | `goto-extract_sdp.py` | GoTo (and other JSON-based signalling) | TLS / WebSocket or HTTP/2 / JSON containing SDP text |
 | `meet-exctract-sdp.py` | Google Meet | TLS / HTTP/2 / protobuf (no SDP on the wire) |
 | `webrtc-sdp_in_meet.lua` | Google Meet, inside Wireshark | Same decoding as a Wireshark Lua plugin |
+| `teams-extract-sdp.py` | Microsoft Teams | Offer: TLS / HTTP/2 / JSON. Answer: TLS / WebSocket (Trouter) / base64+gzip JSON |
 
 ## Requirements
 
@@ -27,6 +28,7 @@ WebRTC leaves signalling to the vendor, so the SDP rarely shows up as "SDP" in W
 |---|---|
 | `goto_audio-signaling.pcapng` | `python3 goto-extract_sdp.py test-data/goto_audio-signaling.pcapng` |
 | `meet9_signaling.pcapng` | `python3 meet-exctract-sdp.py test-data/meet9_signaling.pcapng` |
+| `teams_signaling.pcapng` | `python3 teams-extract-sdp.py test-data/teams_signaling.pcapng` |
 
 Anyone with these files can read the decrypted signalling, so only share captures of test calls.
 
@@ -171,6 +173,84 @@ $ tshark -X lua_script:webrtc-sdp_in_meet.lua -r test-data/meet9_signaling.pcapn
 
 $ tshark -X lua_script:webrtc-sdp_in_meet.lua -r test-data/meet9_signaling.pcapng -Y sdp_in_meet -O sdp_in_meet,sdp
 ```
+
+## teams-extract-sdp.py
+
+Teams sends real SDP, but the offer and the answer travel on different connections:
+
+- **Offer**: the browser POSTs the join request to the conversation service (`https://api.flightproxy.skype.com/api/v2/cp/conv-…/conv/<id>`) over HTTP/2. The JSON body carries the SDP in `callInvitation.mediaContent.blob` (`contentType` `application/sdp-ngc-1.0`).
+- **Answer**: the call controller calls back through the Trouter WebSocket (`*.trouter.skype.com`) with a socket.io-style frame `3:::{"method":"POST","url":"…/call/acceptance/","body":"…"}`. The `body` is base64-encoded gzip (`X-Microsoft-Skype-Content-Encoding: gzip`) of a JSON document with the SDP in `callAcceptance.mediaContent.blob`.
+
+The script:
+
+1. Uses tshark to find HTTP/2 streams whose body mentions `mediaContent` (or whose path looks like a conversation/call-controller request) and takes the reassembled bodies.
+2. Reads all WebSocket payloads as raw bytes, strips the socket.io prefix and decodes `body` (plain JSON, base64, gzip are detected automatically).
+3. Exports every JSON string that starts with `v=0` as SDP, byte for byte as sent (CRLF kept). `callInvitation` → offer, `callAcceptance`/`mediaAnswer` → answer. Offers and answers are paired via `mediaContent.mediaLegId`.
+4. Prints a per-mid table: SDP direction of the offer, the **effective** direction from `mediaContent.mediaDescriptions` (Teams overrides the SDP there, e.g. mids 2–6 and 11 are `sendrecv` in the SDP but `recvonly` in effect), the answer direction, answer codecs and `x-ssrc-range`s.
+5. Lists the STUN connectivity checks that use the negotiated ufrags.
+
+```
+$ python3 teams-extract-sdp.py test-data/teams_signaling.pcapng -o /tmp/teams
+Found 2 SDP(s) in 1 call leg(s)
+
+[1] mediaLegId 1B459D653E924AEA9FE6EF6694F0FE97
+  OFFER  frame 1283 t=34.880s  HTTP/2 request (tcp.stream 15, h2 stream 19)  192.168.102.78:54914 -> 98.66.218.35:443
+      https://api.flightproxy.skype.com/api/v2/cp/conv-swce-03-prod-aks.conv.skype.com/conv/Spru-Tgp-kK-pNoJNsnNTA?...
+      callInvitation.mediaContent.blob  (application/sdp-ngc-1.0)
+      13 m-lines, 810 lines, ice-ufrag=EhSM setup=actpass candidates=1
+        a=candidate:3189342728 1 udp 2122260223 192.168.102.78 64474 typ host
+      note: 24 extmap lines use backslash URIs as sent on the wire: http:\\www.ietf.org\id\draft-holmer-rmcat-..., ...
+      note: mediaParameter: {"sendSideBWSeed":{"seedValueBitsPerSec":558736}}
+  ANSWER frame 1385 t=35.796s  WebSocket POST callback "call/acceptance" (tcp.stream 12)  72.144.120.211:443 -> 192.168.102.78:58930
+      body.<decoded>.callAcceptance.mediaContent.blob  (application/sdp-ngc-1.0)
+      13 m-lines, 410 lines, ice-ufrag=Yh3A setup=passive candidates=2
+        a=candidate:1 1 UDP 54001663 48.208.184.155 3478 typ relay raddr 10.0.2.122 rport 3478 MTURNID 14851909894487247346
+        a=candidate:3 1 tcp-pass 18087935 48.208.184.155 3478 typ relay raddr 10.0.2.122 rport 3478
+      chain-id e6501dd9-3ccd-4645-8dd0-282d9ca8dc3e
+  per-mid (effective = offer's mediaContent.mediaDescriptions, * = overrides SDP):
+  mid  kind    label                     offer dir  effective   answer dir  answer codecs                ...
+  0    audio   main-audio                sendrecv   -           (sendrecv)  120:CN 111:OPUS 97:RED ...
+  1    video   main-video                sendrecv   sendrecv    (sendrecv)  107:H264(42C01E) 99:rtx>107
+  2    video   main-video                sendrecv   recvonly *  (sendrecv)  107:H264(42C01E) 99:rtx>107
+  ...
+  12   x-data  data                      sendrecv   -           (sendrecv)  127:x-data 126:rtx>127
+  offer -> answer: 916 ms
+
+First ICE check: frame 1397 at t=35.952s -> 48.208.184.155:3478  (6 checks total)
+```
+
+`(sendrecv)` means the m-section has no direction attribute, so the default applies.
+
+### Usage
+
+```
+python3 teams-extract-sdp.py CAPTURE [--keylog KEYLOG] [-o OUTDIR] [--tshark PATH] [-p]
+python3 teams-extract-sdp.py --bodies FILE [FILE ...] [-o OUTDIR]
+```
+
+| Option | Description |
+|---|---|
+| `CAPTURE` | pcap or pcapng file |
+| `--keylog` | TLS key log file. Not needed if the keys are embedded. |
+| `-o`, `--outdir` | Output directory (default: `<capture>_teams_sdp`, or `teams_sdp_out` with `--bodies`) |
+| `--tshark` | Path to tshark if it isn't on `PATH` |
+| `-p`, `--print` | Also print the full SDPs |
+| `--bodies FILE…` | Skip tshark and decode bodies exported from Wireshark or DevTools: the join request JSON, a Trouter frame (`3:::{…}`), or base64/gzip data |
+
+Output per call leg (`NN` = leg number):
+
+| File | Content |
+|---|---|
+| `<prefix>-NN-{offer,answer}.sdp` | SDP exactly as sent (CRLF line endings) |
+| `<prefix>-NN-{offer,answer}.json` | Decoded signalling JSON the SDP came from (join request / decoded acceptance body) |
+| `<prefix>-NN-sdpK.{sdp,json}` | SDPs found under other JSON keys (role unknown) |
+| `<prefix>-ice-checks.tsv` | STUN binding requests using the negotiated ufrags, with USE-CANDIDATE flag |
+
+### Limitations
+
+- Tested with the Teams web client joining a consumer (teams.live.com) meeting. Other clients or tenants may use other callbacks (e.g. `call/mediaAnswer`, renegotiation); they are picked up as long as the SDP sits in a JSON string starting with `v=0`.
+- The `.json` files contain the meeting URL, passcode and participant IDs. Review them before sharing.
+- Trickled candidates were not seen in the test capture, so only the candidates inside the SDP are shown.
 
 ## Preparing a capture
 
