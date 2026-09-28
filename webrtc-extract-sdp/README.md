@@ -2,20 +2,20 @@
 
 Pull WebRTC **SDP offers and answers** out of a TLS-decrypted packet capture and save them as readable files.
 
-WebRTC leaves signalling to the vendor, so the SDP rarely shows up as "SDP" in Wireshark. Each product needs its own approach:
+WebRTC leaves signalling to the vendor, so the SDP rarely shows up as "SDP" in Wireshark. Each product needs its own approach. The Python scripts write the SDP to files; the Wireshark plugins in [wireshark/](wireshark/) show the same SDP in the packet tree:
 
-| Script | Product | Signalling transport |
-|---|---|---|
-| `goto-extract_sdp.py` | GoTo (and other JSON-based signalling) | TLS / WebSocket or HTTP/2 / JSON containing SDP text |
-| `meet-exctract-sdp.py` | Google Meet | TLS / HTTP/2 / protobuf (no SDP on the wire) |
-| `webrtc-sdp_in_meet.lua` | Google Meet, inside Wireshark | Same decoding as a Wireshark Lua plugin |
-| `teams-extract-sdp.py` | Microsoft Teams | Offer: TLS / HTTP/2 / JSON. Answer: TLS / WebSocket (Trouter) / base64+gzip JSON |
-| `webrtc-sdp_in_teams.lua` | Microsoft Teams, inside Wireshark | Same decoding as a Wireshark Lua plugin |
+| Product | Script | Wireshark plugin | Signalling transport |
+|---|---|---|---|
+| GoTo (and other JSON-based signalling) | `goto-extract-sdp.py` | `webrtc-sdp_in_json.lua` | TLS / WebSocket or HTTP/2 / JSON containing SDP text |
+| Google Meet | `meet-extract-sdp.py` | `webrtc-sdp_in_meet.lua` | TLS / HTTP/2 / protobuf (no SDP on the wire) |
+| Microsoft Teams | `teams-extract-sdp.py` | `webrtc-sdp_in_teams.lua` | Offer: TLS / HTTP/2 / JSON. Answer: TLS / WebSocket (Trouter) / base64+gzip JSON |
+
+All scripts take `-k`/`--keylog`, `-o`/`--outdir` and `--tshark`.
 
 ## Requirements
 
-- Python 3.7+ (3.8+ for the Meet script), standard library only
-- `tshark` (Wireshark 3.x or newer) on your `PATH`
+- Python 3.7+ (3.8+ for the Meet and Teams scripts), standard library only
+- `tshark` (Wireshark 3.x or newer) on your `PATH`, or pass its location with `--tshark`
   - macOS: add Wireshark's CLI tools to the path, or use `/Applications/Wireshark.app/Contents/MacOS/tshark`
   - Debian/Ubuntu: `sudo apt install tshark`
   - Windows: add `C:\Program Files\Wireshark` to `PATH`
@@ -27,18 +27,18 @@ WebRTC leaves signalling to the vendor, so the SDP rarely shows up as "SDP" in W
 
 | File | Use with |
 |---|---|
-| `goto_audio-signaling.pcapng` | `python3 goto-extract_sdp.py test-data/goto_audio-signaling.pcapng` |
-| `meet9_signaling.pcapng` | `python3 meet-exctract-sdp.py test-data/meet9_signaling.pcapng` |
+| `goto_audio-signaling.pcapng` | `python3 goto-extract-sdp.py test-data/goto_audio-signaling.pcapng` |
+| `meet9_signaling.pcapng` | `python3 meet-extract-sdp.py test-data/meet9_signaling.pcapng` |
 | `teams_signaling.pcapng` | `python3 teams-extract-sdp.py test-data/teams_signaling.pcapng` |
 
 Anyone with these files can read the decrypted signalling, so only share captures of test calls.
 
-## goto-extract_sdp.py
+## goto-extract-sdp.py
 
 Finds SDP embedded in JSON, typically a string inside a WebSocket or HTTP/2 message with escaped `\r\n`, sometimes JSON-encoded twice or nested in a vendor envelope.
 
 ```
-$ python3 goto-extract_sdp.py test-data/goto_audio-signaling.pcapng
+$ python3 goto-extract-sdp.py test-data/goto_audio-signaling.pcapng
 #1   frame 32      t=    0.190s  offer    192.168.102.79:61322 -> 23.239.237.146:443  m=audio,audio,audio,audio,audio ice-ufrag=L//A candidates=0 lines=147
       -> sdp_out/01_frame32_offer.sdp
 #2   frame 40      t=    0.210s  answer   23.239.237.146:443 -> 192.168.102.79:61322  m=audio,audio,audio,audio,audio ice-ufrag=tnn4 candidates=0 lines=94
@@ -59,7 +59,7 @@ Features:
 ### Usage
 
 ```
-python3 goto-extract_sdp.py CAPTURE [-o OUTDIR] [-k KEYLOG] [-Y FILTER] [-p]
+python3 goto-extract-sdp.py CAPTURE [-o OUTDIR] [-k KEYLOG] [-Y FILTER] [--tshark PATH] [-p]
 ```
 
 | Option | Description |
@@ -68,12 +68,13 @@ python3 goto-extract_sdp.py CAPTURE [-o OUTDIR] [-k KEYLOG] [-Y FILTER] [-p]
 | `-o`, `--outdir` | Output directory for the `.sdp` files (default: `sdp_out`) |
 | `-k`, `--keylog` | TLS key log file (`SSLKEYLOGFILE` format). Not needed if the keys are embedded in the pcapng. |
 | `-Y`, `--filter` | Wireshark display filter that limits which packets are searched (default: `websocket \|\| http2 \|\| http \|\| json`) |
+| `--tshark` | Path to tshark if it isn't on `PATH` |
 | `-p`, `--print` | Also print each full SDP to stdout |
 
 ```
-python3 goto-extract_sdp.py call.pcapng -k sslkeys.log -p          # separate key log, print SDPs
-python3 goto-extract_sdp.py call.pcapng -Y 'ip.addr == 23.239.237.146'   # one signalling server only
-python3 goto-extract_sdp.py call.pcapng -Y tls                     # nothing found? search all decrypted TLS
+python3 goto-extract-sdp.py call.pcapng -k sslkeys.log -p          # separate key log, print SDPs
+python3 goto-extract-sdp.py call.pcapng -Y 'ip.addr == 23.239.237.146'   # one signalling server only
+python3 goto-extract-sdp.py call.pcapng -Y tls                     # nothing found? search all decrypted TLS
 ```
 
 Output files are named `NN_frameFRAME_TYPE.sdp` (e.g. `03_frame57_offer.sdp`), where `TYPE` is `offer`, `answer`, `pranswer` or `unknown`. Line endings are normalised to `\n`.
@@ -94,7 +95,25 @@ The reported frame is where Wireshark shows the reassembled message, i.e. the **
 - The whole tshark JSON output is held in memory; narrow large captures with `-Y`.
 - No output usually means TLS isn't decrypted. Statistics → Protocol Hierarchy should show `websocket`, `http2` or `json` under TLS.
 
-## meet-exctract-sdp.py
+### Wireshark plugin: webrtc-sdp_in_json.lua
+
+[webrtc-sdp_in_json.lua](wireshark/webrtc-sdp_in_json.lua) is the Wireshark counterpart for JSON signalling such as GoTo's. It takes every JSON string that starts with `v=0` and passes it to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work. The protocol column shows `WebSocket/JSON/SDP`.
+
+Install: set Preferences → Protocols → WebSocket → *Dissect websocket text as* → **JSON**, copy the plugin to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. Tested with Wireshark 4.6.8 on macOS on a capture taken on Windows.
+
+With tshark:
+
+```
+$ tshark -X lua_script:wireshark/webrtc-sdp_in_json.lua -o websocket.text_type:JSON -r test-data/goto_audio-signaling.pcapng -Y sdp
+   32 0.189826500 192.168.102.79 → 23.239.237.146 WebSocket/JSON/SDP 220 WebSocket Text [FIN] [MASKED], JSON
+   40 0.210184400 23.239.237.146 → 192.168.102.79 WebSocket/JSON/SDP 367 WebSocket Text [FIN] , JSON
+   57 0.870906500 192.168.102.79 → 23.239.237.146 WebSocket/JSON/SDP 230 WebSocket Text [FIN] [MASKED], JSON
+   66 0.892672600 23.239.237.146 → 192.168.102.79 WebSocket/JSON/SDP 774 WebSocket Text [FIN] , JSON
+```
+
+Don't load it together with `webrtc-sdp_in_teams.lua` when looking at Teams captures: the Teams offer is a JSON string over HTTP/2, so both plugins dissect it and the SDP shows up twice.
+
+## meet-extract-sdp.py
 
 Google Meet never sends SDP over the wire. The browser's offer and the SFU's answer are exchanged as protobuf in a single gRPC-web call, `google.rtc.meetings.v1.MediaSessionService/CreateMediaSession`, over HTTP/2. The script:
 
@@ -104,7 +123,7 @@ Google Meet never sends SDP over the wire. The browser's offer and the SFU's ans
 4. Lists the STUN connectivity checks that use the negotiated ufrags, showing where media actually flows.
 
 ```
-$ python3 meet-exctract-sdp.py test-data/meet9_signaling.pcapng -o /tmp/meet
+$ python3 meet-extract-sdp.py test-data/meet9_signaling.pcapng -o /tmp/meet
 Found 1 CreateMediaSession call(s)
 [1] t=0.899s  (tcp.stream 0, h2 stream 53, req frame 640, resp frame 804)
   server ufrag b2RcUacC6cJBPAoKAAiKYigCIAMQ  candidates:
@@ -124,14 +143,14 @@ Written:
 ### Usage
 
 ```
-python3 meet-exctract-sdp.py CAPTURE [--keylog KEYLOG] [-o OUTDIR] [--tshark PATH]
-python3 meet-exctract-sdp.py --bodies REQ RESP [-o OUTDIR]
+python3 meet-extract-sdp.py CAPTURE [-k KEYLOG] [-o OUTDIR] [--tshark PATH]
+python3 meet-extract-sdp.py --bodies REQ RESP [-o OUTDIR]
 ```
 
 | Option | Description |
 |---|---|
 | `CAPTURE` | pcap or pcapng file |
-| `--keylog` | TLS key log file. Not needed if the keys are embedded. |
+| `-k`, `--keylog` | TLS key log file. Not needed if the keys are embedded. |
 | `-o`, `--outdir` | Output directory (default: `<capture>_meet_sdp`, or `meet_sdp_out` with `--bodies`) |
 | `--tshark` | Path to tshark if it isn't on `PATH` |
 | `--bodies REQ RESP` | Skip tshark and decode request/response bodies exported from Wireshark or DevTools (raw, gzip or base64) |
@@ -152,7 +171,7 @@ Output per `CreateMediaSession` call (`NN` = call number):
 
 ### Wireshark plugin: webrtc-sdp_in_meet.lua
 
-[webrtc-sdp_in_meet.lua](webrtc-sdp_in_meet.lua) does the same decoding inside Wireshark. On the HTTP/2 DATA frames of `CreateMediaSession` it renders the offer and answer as SDP and passes them to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work. The rendered SDP also appears as an extra bytes tab (`Meet SDP offer` / `Meet SDP answer`).
+[webrtc-sdp_in_meet.lua](wireshark/webrtc-sdp_in_meet.lua) does the same decoding inside Wireshark. On the HTTP/2 DATA frames of `CreateMediaSession` it renders the offer and answer as SDP and passes them to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work. The rendered SDP also appears as an extra bytes tab (`Meet SDP offer` / `Meet SDP answer`).
 
 Install: copy it to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. It needs decrypted TLS and the default HTTP/2 settings (body reassembly and decompression). No other preferences are needed.
 
@@ -168,11 +187,11 @@ sdp.media_attr contains "candidate"
 With tshark:
 
 ```
-$ tshark -X lua_script:webrtc-sdp_in_meet.lua -r test-data/meet9_signaling.pcapng -Y sdp_in_meet
+$ tshark -X lua_script:wireshark/webrtc-sdp_in_meet.lua -r test-data/meet9_signaling.pcapng -Y sdp_in_meet
   641 0.899262800 192.168.102.77 → 142.251.155.5 HTTP2/PB(<UNKNOWN>)/SDP 1243 DATA[53] (PROTOBUF) [Meet SDP offer]
   804 1.040942600 142.251.155.5 → 192.168.102.77 HTTP2/SDP 189 DATA[53] (text/plain) [Meet SDP answer]
 
-$ tshark -X lua_script:webrtc-sdp_in_meet.lua -r test-data/meet9_signaling.pcapng -Y sdp_in_meet -O sdp_in_meet,sdp
+$ tshark -X lua_script:wireshark/webrtc-sdp_in_meet.lua -r test-data/meet9_signaling.pcapng -Y sdp_in_meet -O sdp_in_meet,sdp
 ```
 
 ## teams-extract-sdp.py
@@ -225,14 +244,14 @@ First ICE check: frame 1397 at t=35.952s -> 48.208.184.155:3478  (6 checks total
 ### Usage
 
 ```
-python3 teams-extract-sdp.py CAPTURE [--keylog KEYLOG] [-o OUTDIR] [--tshark PATH] [-p]
+python3 teams-extract-sdp.py CAPTURE [-k KEYLOG] [-o OUTDIR] [--tshark PATH] [-p]
 python3 teams-extract-sdp.py --bodies FILE [FILE ...] [-o OUTDIR]
 ```
 
 | Option | Description |
 |---|---|
 | `CAPTURE` | pcap or pcapng file |
-| `--keylog` | TLS key log file. Not needed if the keys are embedded. |
+| `-k`, `--keylog` | TLS key log file. Not needed if the keys are embedded. |
 | `-o`, `--outdir` | Output directory (default: `<capture>_teams_sdp`, or `teams_sdp_out` with `--bodies`) |
 | `--tshark` | Path to tshark if it isn't on `PATH` |
 | `-p`, `--print` | Also print the full SDPs |
@@ -255,9 +274,9 @@ Output per call leg (`NN` = leg number):
 
 ### Wireshark plugin: webrtc-sdp_in_teams.lua
 
-[webrtc-sdp_in_teams.lua](webrtc-sdp_in_teams.lua) does the same inside Wireshark. It finds the offer in the HTTP/2 join request and the answer in the Trouter `call/acceptance` callback (decoding base64/gzip), and passes both to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work. The SDP also appears as an extra bytes tab (`Teams SDP offer` / `Teams SDP answer`); select *Session Description Protocol* and use File → Export Packet Bytes to save it.
+[webrtc-sdp_in_teams.lua](wireshark/webrtc-sdp_in_teams.lua) does the same inside Wireshark. It finds the offer in the HTTP/2 join request and the answer in the Trouter `call/acceptance` callback (decoding base64/gzip), and passes both to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work. The SDP also appears as an extra bytes tab (`Teams SDP offer` / `Teams SDP answer`); select *Session Description Protocol* and use File → Export Packet Bytes to save it.
 
-Install: copy it to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. It needs decrypted TLS and the default HTTP/2 settings (body reassembly). No other preferences are needed.
+Install: copy it to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. It needs decrypted TLS and the default HTTP/2 settings (body reassembly). No other preferences are needed. Remove `webrtc-sdp_in_json.lua` from the plugins folder while you do this, or the offer's SDP is dissected twice.
 
 Next to the SDP, the `sdp_in_teams` tree shows the JSON path, `mediaLegId` with a link to the matching offer/answer frame and the offer→answer delay, ICE/DTLS values, candidates, and one entry per m-section with SDP direction, effective direction from `mediaDescriptions`, `x-ssrc-range` and codecs. Notes flag the backslash extmap URIs and `mediaParameter`.
 
@@ -275,11 +294,11 @@ sdp.media_attr contains "x-ssrc-range"
 With tshark:
 
 ```
-$ tshark -X lua_script:webrtc-sdp_in_teams.lua -r test-data/teams_signaling.pcapng -Y sdp_in_teams
+$ tshark -X lua_script:wireshark/webrtc-sdp_in_teams.lua -r test-data/teams_signaling.pcapng -Y sdp_in_teams
  1283 34.879994300 192.168.102.78 → 98.66.218.35 HTTP2/JSON/SDP 273 DATA[19], JSON (application/json) [Teams SDP offer]
  1385 35.796205700 72.144.120.211 → 192.168.102.78 WebSocket/JSON/SDP 959 WebSocket Text [FIN]  [Trouter call/acceptance], JSON [Teams SDP answer]
 
-$ tshark -2 -X lua_script:webrtc-sdp_in_teams.lua -r test-data/teams_signaling.pcapng -Y sdp_in_teams -O sdp_in_teams,teams_trouter,sdp
+$ tshark -2 -X lua_script:wireshark/webrtc-sdp_in_teams.lua -r test-data/teams_signaling.pcapng -Y sdp_in_teams -O sdp_in_teams,teams_trouter,sdp
 ```
 
 Use `-2` (two-pass) to get the *Answer in* link on the offer frame as well.
@@ -304,7 +323,7 @@ Anyone with the resulting file can read the decrypted signalling.
   json.value.string == "offer" || json.value.string == "answer"
   ```
 
-The companion Lua plugin `sdp_in_json.lua` passes these JSON strings to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work. [https://github.com/rohess/wireshark_plugins/tree/main/webrtc-sdp-in-json](https://github.com/rohess/wireshark_plugins/tree/main/webrtc-sdp-in-json)
+[webrtc-sdp_in_json.lua](#wireshark-plugin-webrtc-sdp_in_jsonlua) passes these JSON strings to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work.
 
 ## License
 

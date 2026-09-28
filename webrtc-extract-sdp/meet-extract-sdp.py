@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-meet_sdp_from_pcap.py - pull the Google Meet offer/answer out of a capture and
+meet-extract-sdp.py - pull the Google Meet offer/answer out of a capture and
 render it as readable (approximate) SDP.
 
 Pipeline
@@ -17,9 +17,9 @@ Requirements
   (editcap --inject-secrets tls,keys.log in.pcapng out.pcapng).
 
 Usage
-  python3 meet_sdp_from_pcap.py capture.pcapng --keylog sslkeys.log
-  python3 meet_sdp_from_pcap.py capture.pcapng -o outdir
-  python3 meet_sdp_from_pcap.py --bodies req.bin resp.bin      # skip tshark, use exported bodies
+  python3 meet-extract-sdp.py capture.pcapng --keylog sslkeys.log
+  python3 meet-extract-sdp.py capture.pcapng -o outdir
+  python3 meet-extract-sdp.py --bodies req.bin resp.bin      # skip tshark, use exported bodies
 
 Protobuf field meanings are reverse-engineered from one capture; guesses are marked ';'.
 """
@@ -469,7 +469,7 @@ def process(idx, req_chunks, resp_chunks, outdir, prefix, meta=""):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("pcap", nargs="?", help="pcap/pcapng with decryptable TLS")
-    ap.add_argument("--keylog", help="SSLKEYLOGFILE (not needed if secrets are embedded)")
+    ap.add_argument("-k", "--keylog", help="SSLKEYLOGFILE (not needed if secrets are embedded)")
     ap.add_argument("-o", "--outdir", help="output directory (default: <pcap>_meet_sdp)")
     ap.add_argument("--tshark", help="path to tshark")
     ap.add_argument("--bodies", nargs=2, metavar=("REQ", "RESP"),

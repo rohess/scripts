@@ -4,7 +4,7 @@
 -- HTTP/2 call,
 --   /$rpc/google.rtc.meetings.v1.MediaSessionService/CreateMediaSession
 -- This plugin decodes both bodies, renders them as approximate SDP (same
--- mapping as meet-exctract-sdp.py) and dissects that with the built-in SDP
+-- mapping as meet-extract-sdp.py) and dissects that with the built-in SDP
 -- dissector, so every line becomes its own tree item and sdp.* filters work.
 --
 -- Requires decrypted TLS (key log file or pcapng with embedded secrets) and

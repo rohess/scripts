@@ -465,7 +465,7 @@ def where(r):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("pcap", nargs="?", help="pcap/pcapng with decryptable TLS")
-    ap.add_argument("--keylog", help="SSLKEYLOGFILE (not needed if secrets are embedded)")
+    ap.add_argument("-k", "--keylog", help="SSLKEYLOGFILE (not needed if secrets are embedded)")
     ap.add_argument("-o", "--outdir", help="output directory (default: <pcap>_teams_sdp)")
     ap.add_argument("--tshark", help="path to tshark")
     ap.add_argument("--bodies", nargs="+", metavar="FILE",

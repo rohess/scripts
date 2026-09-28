@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-extract_sdp.py - pull WebRTC SDP offers/answers out of a TLS-decrypted pcap(ng).
+goto-extract-sdp.py - pull WebRTC SDP offers/answers out of a TLS-decrypted pcap(ng).
 
 Works with keys embedded in the pcapng (DSB) or an external SSLKEYLOGFILE.
 Vendor-agnostic: it doesn't rely on a particular JSON field name or on how
@@ -9,17 +9,18 @@ It walks the whole tshark dissection, decodes hex byte fields, finds JSON
 objects that carry an "sdp" string, and pairs them with "type": offer/answer.
 
 Usage:
-    python3 extract_sdp.py capture.pcapng
-    python3 extract_sdp.py capture.pcapng -o sdp_out -p
-    python3 extract_sdp.py capture.pcapng -k keylog.txt -Y 'ip.addr==1.2.3.4'
+    python3 goto-extract-sdp.py capture.pcapng
+    python3 goto-extract-sdp.py capture.pcapng -o sdp_out -p
+    python3 goto-extract-sdp.py capture.pcapng -k keylog.txt -Y 'ip.addr==1.2.3.4'
 
-Requires tshark (Wireshark 3.x or newer) on PATH.
+Requires tshark (Wireshark 3.x or newer) on PATH, or pass --tshark.
 """
 import argparse
 import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -31,8 +32,17 @@ TYPE_FIELD = re.compile(r'"type"\s*:\s*"(offer|answer|pranswer)"')
 DEFAULT_FILTER = "websocket || http2 || http || json"
 
 
-def run_tshark(pcap, keylog, dfilter):
-    cmd = ["tshark", "-r", pcap, "-T", "json", "-x", "--no-duplicate-keys",
+def find_tshark(explicit=None):
+    for cand in (explicit, shutil.which("tshark"),
+                 "/Applications/Wireshark.app/Contents/MacOS/tshark",
+                 r"C:\Program Files\Wireshark\tshark.exe"):
+        if cand and os.path.exists(cand):
+            return cand
+    sys.exit("tshark not found - install Wireshark or pass --tshark /path/to/tshark")
+
+
+def run_tshark(tshark, pcap, keylog, dfilter):
+    cmd = [tshark, "-r", pcap, "-T", "json", "-x", "--no-duplicate-keys",
            "-Y", dfilter]
     if keylog:
         cmd += ["-o", f"tls.keylog_file:{keylog}"]
@@ -144,10 +154,11 @@ def main():
     ap.add_argument("-k", "--keylog", help="SSLKEYLOGFILE (not needed if keys are embedded)")
     ap.add_argument("-Y", "--filter", default=DEFAULT_FILTER,
                     help=f"display filter to narrow the search (default: {DEFAULT_FILTER})")
+    ap.add_argument("--tshark", help="path to tshark")
     ap.add_argument("-p", "--print", action="store_true", help="also print full SDPs")
     args = ap.parse_args()
 
-    packets = run_tshark(args.pcap, args.keylog, args.filter)
+    packets = run_tshark(find_tshark(args.tshark), args.pcap, args.keylog, args.filter)
     os.makedirs(args.outdir, exist_ok=True)
 
     results = {}  # (frame, sdp_hash) -> record; keeps the best-typed copy

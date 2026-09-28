@@ -1,4 +1,4 @@
--- sdp_in_json.lua
+-- webrtc-sdp_in_json.lua
 -- Wireshark postdissector: finds SDP bodies carried as JSON strings
 -- (WebRTC signalling over WebSocket / HTTP) and dissects them with the
 -- built-in SDP dissector, so every line becomes its own tree item.
