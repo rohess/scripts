@@ -513,7 +513,9 @@ function sdp_teams.dissector(tvb, pinfo, tree)
         if fr.complete then
             for _, fi in ipairs(fr.chunks) do
                 local raw = fi.value:raw()
-                if raw:find("v=0", 1, true) or raw:sub(1, 2) == "\31\139" then
+                -- Webex ROAP bodies are left to webrtc-sdp_in_webex.lua
+                if (raw:find("v=0", 1, true) or raw:sub(1, 2) == "\31\139")
+                        and not raw:find("roapMessage", 1, true) then
                     local obj = decode_any(raw)
                     if obj then
                         handle_json(obj, tree, fi.range, pinfo)
