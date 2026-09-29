@@ -17,11 +17,12 @@ All scripts take `-k`/`--keylog`, `-o`/`--outdir` and `--tshark`.
 ## Requirements
 
 - Python 3.7+ (3.8+ for the Meet, Teams and Webex scripts), standard library only
-- `tshark` (Wireshark 3.x or newer) on your `PATH`, or pass its location with `--tshark`
+- `tshark` (Wireshark 4.6 or newer) on your `PATH`, or pass its location with `--tshark`
   - macOS: add Wireshark's CLI tools to the path, or use `/Applications/Wireshark.app/Contents/MacOS/tshark`
   - Debian/Ubuntu: `sudo apt install tshark`
   - Windows: add `C:\Program Files\Wireshark` to `PATH`
 - Decryptable TLS: keys embedded in the pcapng, or a separate `SSLKEYLOGFILE` (see [Preparing a capture](#preparing-a-capture))
+- Alternatively use the capture scripts from (https://github.com/rohess/scripts/tree/main/ssldump)[https://github.com/rohess/scripts/tree/main/ssldump] - the one for Windows runs the capture via dumpcap and injects TLS keys afterwards
 
 ## Test data
 
