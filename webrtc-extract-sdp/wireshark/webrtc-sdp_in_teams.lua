@@ -267,8 +267,8 @@ end
 local function parse_sdp(sdp)
     local secs, cur = {}, nil
     local sess = { attrs = {} }
-    for line in (sdp .. "\n"):gmatch("([^\n]*)\n") do
-        line = line:gsub("\r$", "")
+    for raw_line in (sdp .. "\n"):gmatch("([^\n]*)\n") do
+        local line = raw_line:gsub("\r$", "")
         if line:sub(1, 2) == "m=" then
             local f = {}
             for w in line:sub(3):gmatch("%S+") do f[#f + 1] = w end

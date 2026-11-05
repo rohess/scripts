@@ -254,8 +254,8 @@ end
 local function parse_sdp(sdp)
     local secs, cur = {}, nil
     local sess = { attrs = {} }
-    for line in (sdp .. "\n"):gmatch("([^\n]*)\n") do
-        line = line:gsub("\r$", "")
+    for raw_line in (sdp .. "\n"):gmatch("([^\n]*)\n") do
+        local line = raw_line:gsub("\r$", "")
         if line:sub(1, 2) == "m=" then
             local f = {}
             for w in line:sub(3):gmatch("%S+") do f[#f + 1] = w end
@@ -472,8 +472,8 @@ local function add_media(tree, range, pinfo, ctx, key, jpath, env, parent)
     end
 
     local ht = nil
-    for _, h in ipairs(type(roap.headers) == "table" and roap.headers or {}) do
-        h = tostring(h)
+    for _, hv in ipairs(type(roap.headers) == "table" and roap.headers or {}) do
+        local h = tostring(hv)
         local k, v = h:match("^([^=]+)=(.*)$")
         if k == "x-cisco-turn-url" then ti:add(pf.turn_url, v)
         elseif k == "x-cisco-turn-username" then ti:add(pf.turn_user, v)
