@@ -26,7 +26,7 @@ The script:
 6. Lists the STUN connectivity checks that use the negotiated ufrags, with USE-CANDIDATE and the peer-reflexive mapped address.
 
 ```
-$ python3 webex-extract-sdp.py test-data/webex_20260921_204532_-first-20secs-cleaned.pcapng -o /tmp/webex
+$ python3 webex-extract-sdp.py test-captures/webex-signaling.pcapng -o /tmp/webex
 Found 4 ROAP message(s) in 2 transaction(s)
 
 [seq 0] TURN_DISCOVERY_REQUEST / TURN_DISCOVERY_RESPONSE
@@ -149,13 +149,13 @@ sdp.media_attr contains "xTLS"
 With tshark:
 
 ```
-$ tshark -X lua_script:wireshark/webrtc-sdp_in_webex.lua -r test-data/webex_20260921_204532_-first-20secs-cleaned.pcapng -Y 'sdp_in_webex.roap.type'
+$ tshark -X lua_script:wireshark/webrtc-sdp_in_webex.lua -r test-captures/webex-signaling.pcapng -Y 'sdp_in_webex.roap.type'
  3270 16.679204900 192.168.102.78 → 170.72.238.49 HTTP2/JSON 1496 DATA[3], JSON (application/json) [ROAP TURN_DISCOVERY_REQUEST seq=0]
  3280 16.811380800 170.72.238.49 → 192.168.102.78 HTTP2/JSON 104 DATA[3], DATA[3], JSON (application/json) [ROAP TURN_DISCOVERY_RESPONSE seq=0]
  3480 18.951082800 192.168.102.78 → 170.72.238.49 HTTP2/JSON/SDP 1162 DATA[7], JSON (application/json) [ROAP OFFER seq=1]
  3508 19.048437500 170.72.238.49 → 192.168.102.78 HTTP2/JSON/SDP 104 DATA[7], DATA[7], JSON (application/json) [ROAP ANSWER seq=1]
 
-$ tshark -2 -X lua_script:wireshark/webrtc-sdp_in_webex.lua -r test-data/webex_20260921_204532_-first-20secs-cleaned.pcapng -Y sdp_in_webex -O sdp_in_webex,sdp
+$ tshark -2 -X lua_script:wireshark/webrtc-sdp_in_webex.lua -r test-captures/webex-signaling.pcapng -Y sdp_in_webex -O sdp_in_webex,sdp
 ```
 
 Use `-2` (two-pass) to get the *ROAP response in* link on the request frames as well.

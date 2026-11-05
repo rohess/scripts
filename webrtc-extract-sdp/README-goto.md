@@ -5,7 +5,7 @@ Part of [webrtc-extract-sdp](README.md), which covers requirements, test data, c
 Finds SDP embedded in JSON, typically a string inside a WebSocket or HTTP/2 message with escaped `\r\n`, sometimes JSON-encoded twice or nested in a vendor envelope.
 
 ```
-$ python3 goto-extract-sdp.py test-data/goto_audio-signaling.pcapng
+$ python3 goto-extract-sdp.py test-captures/goto_audio-signaling.pcapng
 #1   frame 32      t=    0.190s  offer    192.168.102.79:61322 -> 23.239.237.146:443  m=audio,audio,audio,audio,audio ice-ufrag=L//A candidates=0 lines=147
       -> sdp_out/01_frame32_offer.sdp
 #2   frame 40      t=    0.210s  answer   23.239.237.146:443 -> 192.168.102.79:61322  m=audio,audio,audio,audio,audio ice-ufrag=tnn4 candidates=0 lines=94
@@ -59,16 +59,16 @@ The reported frame is where Wireshark shows the reassembled message, i.e. the **
 - The whole tshark JSON output is held in memory; narrow large captures with `-Y`.
 - No output usually means TLS isn't decrypted. Statistics → Protocol Hierarchy should show `websocket`, `http2` or `json` under TLS.
 
-## Wireshark plugin: webrtc-sdp_in_json.lua
+## Wireshark plugin: webrtc-sdp_in_goto.lua
 
-[webrtc-sdp_in_json.lua](wireshark/webrtc-sdp_in_json.lua) is the Wireshark counterpart for JSON signalling such as GoTo's. It takes every JSON string that starts with `v=0` and passes it to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work. The protocol column shows `WebSocket/JSON/SDP`.
+[webrtc-sdp_in_goto.lua](wireshark/webrtc-sdp_in_goto.lua) is the Wireshark counterpart for JSON signalling such as GoTo's. It takes every JSON string that starts with `v=0` and passes it to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work. The protocol column shows `WebSocket/JSON/SDP`.
 
 Install: set Preferences → Protocols → WebSocket → *Dissect websocket text as* → **JSON**, copy the plugin to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. Tested with Wireshark 4.6.8 on macOS on a capture taken on Windows.
 
 With tshark:
 
 ```
-$ tshark -X lua_script:wireshark/webrtc-sdp_in_json.lua -o websocket.text_type:JSON -r test-data/goto_audio-signaling.pcapng -Y sdp
+$ tshark -X lua_script:wireshark/webrtc-sdp_in_goto.lua -o websocket.text_type:JSON -r test-captures/goto_audio-signaling.pcapng -Y sdp
    32 0.189826500 192.168.102.79 → 23.239.237.146 WebSocket/JSON/SDP 220 WebSocket Text [FIN] [MASKED], JSON
    40 0.210184400 23.239.237.146 → 192.168.102.79 WebSocket/JSON/SDP 367 WebSocket Text [FIN] , JSON
    57 0.870906500 192.168.102.79 → 23.239.237.146 WebSocket/JSON/SDP 230 WebSocket Text [FIN] [MASKED], JSON
@@ -86,4 +86,4 @@ Don't load it together with `webrtc-sdp_in_teams.lua` when looking at Teams capt
   json.value.string == "offer" || json.value.string == "answer"
   ```
 
-[webrtc-sdp_in_json.lua](#wireshark-plugin-webrtc-sdp_in_jsonlua) passes these JSON strings to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work.
+[webrtc-sdp_in_goto.lua](#wireshark-plugin-webrtc-sdp_in_gotolua) passes these JSON strings to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work.

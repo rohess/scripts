@@ -10,7 +10,7 @@ Google Meet never sends SDP over the wire. The browser's offer and the SFU's ans
 4. Lists the STUN connectivity checks that use the negotiated ufrags, showing where media actually flows.
 
 ```
-$ python3 meet-extract-sdp.py test-data/meet9_signaling.pcapng -o /tmp/meet
+$ python3 meet-extract-sdp.py test-captures/meet_signaling.pcapng -o /tmp/meet
 Found 1 CreateMediaSession call(s)
 [1] t=0.899s  (tcp.stream 0, h2 stream 53, req frame 640, resp frame 804)
   server ufrag b2RcUacC6cJBPAoKAAiKYigCIAMQ  candidates:
@@ -19,12 +19,12 @@ Found 1 CreateMediaSession call(s)
       tcp    74.125.250.130:19305  prio 2130706430
       ssltcp 74.125.250.130:443  prio 2130706429
 Written:
-  /tmp/meet/meet9_signaling-01-offer.sdp.txt
-  /tmp/meet/meet9_signaling-01-offer.pb.txt
-  /tmp/meet/meet9_signaling-01-offer.bin
-  /tmp/meet/meet9_signaling-01-answer.sdp.txt
-  /tmp/meet/meet9_signaling-01-answer.pb.txt
-  /tmp/meet/meet9_signaling-01-answer.bin
+  /tmp/meet/meet_signaling-01-offer.sdp.txt
+  /tmp/meet/meet_signaling-01-offer.pb.txt
+  /tmp/meet/meet_signaling-01-offer.bin
+  /tmp/meet/meet_signaling-01-answer.sdp.txt
+  /tmp/meet/meet_signaling-01-answer.pb.txt
+  /tmp/meet/meet_signaling-01-answer.bin
 ```
 
 ## Usage
@@ -72,9 +72,9 @@ sdp.media_attr contains "candidate"
 With tshark:
 
 ```
-$ tshark -X lua_script:wireshark/webrtc-sdp_in_meet.lua -r test-data/meet9_signaling.pcapng -Y sdp_in_meet
+$ tshark -X lua_script:wireshark/webrtc-sdp_in_meet.lua -r test-captures/meet_signaling.pcapng -Y sdp_in_meet
   641 0.899262800 192.168.102.77 → 142.251.155.5 HTTP2/PB(<UNKNOWN>)/SDP 1243 DATA[53] (PROTOBUF) [Meet SDP offer]
   804 1.040942600 142.251.155.5 → 192.168.102.77 HTTP2/SDP 189 DATA[53] (text/plain) [Meet SDP answer]
 
-$ tshark -X lua_script:wireshark/webrtc-sdp_in_meet.lua -r test-data/meet9_signaling.pcapng -Y sdp_in_meet -O sdp_in_meet,sdp
+$ tshark -X lua_script:wireshark/webrtc-sdp_in_meet.lua -r test-captures/meet_signaling.pcapng -Y sdp_in_meet -O sdp_in_meet,sdp
 ```

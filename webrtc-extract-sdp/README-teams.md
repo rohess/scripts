@@ -16,7 +16,7 @@ The script:
 5. Lists the STUN connectivity checks that use the negotiated ufrags.
 
 ```
-$ python3 teams-extract-sdp.py test-data/teams_signaling.pcapng -o /tmp/teams
+$ python3 teams-extract-sdp.py test-captures/teams_signaling.pcapng -o /tmp/teams
 Found 2 SDP(s) in 1 call leg(s)
 
 [1] mediaLegId 1B459D653E924AEA9FE6EF6694F0FE97
@@ -79,7 +79,7 @@ Output per call leg (`NN` = leg number):
 
 [webrtc-sdp_in_teams.lua](wireshark/webrtc-sdp_in_teams.lua) does the same inside Wireshark. It finds the offer in the HTTP/2 join request and the answer in the Trouter `call/acceptance` callback (decoding base64/gzip), and passes both to Wireshark's built-in SDP dissector, so each SDP line becomes its own tree item and `sdp.*` filters work. The SDP also appears as an extra bytes tab (`Teams SDP offer` / `Teams SDP answer`); select *Session Description Protocol* and use File → Export Packet Bytes to save it.
 
-Install: copy it to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. It needs decrypted TLS and the default HTTP/2 settings (body reassembly). No other preferences are needed. Remove `webrtc-sdp_in_json.lua` from the plugins folder while you do this, or the offer's SDP is dissected twice. Webex ROAP bodies are skipped, so it can stay loaded next to `webrtc-sdp_in_webex.lua`.
+Install: copy it to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. It needs decrypted TLS and the default HTTP/2 settings (body reassembly). No other preferences are needed. Remove `webrtc-sdp_in_goto.lua` from the plugins folder while you do this, or the offer's SDP is dissected twice. Webex ROAP bodies are skipped, so it can stay loaded next to `webrtc-sdp_in_webex.lua`.
 
 Next to the SDP, the `sdp_in_teams` tree shows the JSON path, `mediaLegId` with a link to the matching offer/answer frame and the offer→answer delay, ICE/DTLS values, candidates, and one entry per m-section with SDP direction, effective direction from `mediaDescriptions`, `x-ssrc-range` and codecs. Notes flag the backslash extmap URIs and `mediaParameter`.
 
@@ -97,11 +97,11 @@ sdp.media_attr contains "x-ssrc-range"
 With tshark:
 
 ```
-$ tshark -X lua_script:wireshark/webrtc-sdp_in_teams.lua -r test-data/teams_signaling.pcapng -Y sdp_in_teams
+$ tshark -X lua_script:wireshark/webrtc-sdp_in_teams.lua -r test-captures/teams_signaling.pcapng -Y sdp_in_teams
  1283 34.879994300 192.168.102.78 → 98.66.218.35 HTTP2/JSON/SDP 273 DATA[19], JSON (application/json) [Teams SDP offer]
  1385 35.796205700 72.144.120.211 → 192.168.102.78 WebSocket/JSON/SDP 959 WebSocket Text [FIN]  [Trouter call/acceptance], JSON [Teams SDP answer]
 
-$ tshark -2 -X lua_script:wireshark/webrtc-sdp_in_teams.lua -r test-data/teams_signaling.pcapng -Y sdp_in_teams -O sdp_in_teams,teams_trouter,sdp
+$ tshark -2 -X lua_script:wireshark/webrtc-sdp_in_teams.lua -r test-captures/teams_signaling.pcapng -Y sdp_in_teams -O sdp_in_teams,teams_trouter,sdp
 ```
 
 Use `-2` (two-pass) to get the *Answer in* link on the offer frame as well.

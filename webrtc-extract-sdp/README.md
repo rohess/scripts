@@ -6,7 +6,7 @@ WebRTC leaves signalling to the vendor, so the SDP rarely shows up as "SDP" in W
 
 | Product | Script | Wireshark plugin | Signalling transport |
 |---|---|---|---|
-| [GoTo](README-goto.md) (and other JSON-based signalling) | `goto-extract-sdp.py` | `webrtc-sdp_in_json.lua` | TLS / WebSocket or HTTP/2 / JSON containing SDP text |
+| [GoTo](README-goto.md) (and other JSON-based signalling) | `goto-extract-sdp.py` | `webrtc-sdp_in_goto.lua` | TLS / WebSocket or HTTP/2 / JSON containing SDP text |
 | [Google Meet](README-meet.md) | `meet-extract-sdp.py` | `webrtc-sdp_in_meet.lua` | TLS / HTTP/2 / protobuf (no SDP on the wire) |
 | [Microsoft Teams](README-teams.md) | `teams-extract-sdp.py` | `webrtc-sdp_in_teams.lua` | Offer: TLS / HTTP/2 / JSON. Answer: TLS / WebSocket (Trouter) / base64+gzip JSON |
 | [Cisco Webex](README-webex.md) (web client) | `webex-extract-sdp.py` | `webrtc-sdp_in_webex.lua` | TLS / HTTP/2 / JSON (Locus) / ROAP JSON string containing SDP. Offer and answer in one PUT request/response |
@@ -26,15 +26,15 @@ All scripts share the same basic command line (see [Usage](#usage)). How each pr
 
 ## Test data
 
-[test-data/](test-data/) contains sample captures with TLS secrets embedded, so they work without a key log:
+[test-captures/](test-captures/) contains sample captures with TLS secrets embedded, so they work without a key log:
 
 | File | Use with |
 |---|---|
-| `goto_audio-signaling.pcapng` | `python3 goto-extract-sdp.py test-data/goto_audio-signaling.pcapng` |
-| `meet9_signaling.pcapng` | `python3 meet-extract-sdp.py test-data/meet9_signaling.pcapng` |
-| `teams_signaling.pcapng` | `python3 teams-extract-sdp.py test-data/teams_signaling.pcapng` |
-| `webex_20260921_204532_-first-20secs-cleaned.pcapng` | `python3 webex-extract-sdp.py test-data/webex_20260921_204532_-first-20secs-cleaned.pcapng` |
-| `Zoom4-start.pcapng` | `python3 zoom-extract-sdp.py test-data/Zoom4-start.pcapng` |
+| `goto_audio-signaling.pcapng` | `python3 goto-extract-sdp.py test-captures/goto_audio-signaling.pcapng` |
+| `meet_signaling.pcapng` | `python3 meet-extract-sdp.py test-captures/meet_signaling.pcapng` |
+| `teams_signaling.pcapng` | `python3 teams-extract-sdp.py test-captures/teams_signaling.pcapng` |
+| `webex-signaling.pcapng` | `python3 webex-extract-sdp.py test-captures/webex-signaling.pcapng` |
+| `zoom-signaling.pcapng` | `python3 zoom-extract-sdp.py test-captures/zoom-signaling.pcapng` |
 
 Anyone with these files can read the decrypted signalling, so only share captures of test calls.
 
@@ -97,7 +97,7 @@ The output files can contain meeting IDs and passcodes, auth tokens, ICE passwor
 
 ### Wireshark plugins
 
-Copy the plugin to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. All plugins need decrypted TLS; `webrtc-sdp_in_json.lua` also needs WebSocket text dissected as JSON. They pass the SDP to Wireshark's built-in SDP dissector, so `sdp.*` filters work. With tshark, load a plugin with `-X lua_script:wireshark/<plugin>.lua`. Filters, extra protocols and tshark examples are in the product READMEs.
+Copy the plugin to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. All plugins need decrypted TLS; `webrtc-sdp_in_goto.lua` also needs WebSocket text dissected as JSON. They pass the SDP to Wireshark's built-in SDP dissector, so `sdp.*` filters work. With tshark, load a plugin with `-X lua_script:wireshark/<plugin>.lua`. Filters, extra protocols and tshark examples are in the product READMEs.
 
 ## Preparing a capture
 

@@ -31,7 +31,7 @@ The script:
 6. Prints a setup timeline: WebSocket upgrades, ICE servers, offers/answers, first ICE check and success, DTLS, meeting join (`evt 4301` / `4098`) and first SRTCP/SRTP. SRTP and SRTCP are identified by their first bytes (RFC 7983), because Wireshark shows them as plain data or misdissects them.
 
 ```
-$ python3 zoom-extract-sdp.py test-data/Zoom4-start.pcapng -o /tmp/zoom
+$ python3 zoom-extract-sdp.py test-captures/zoom-signaling.pcapng -o /tmp/zoom
 Zoom WebSockets
   tcp.stream 12   zoomiad20624799165rwg.iad.zoom.us  /webclient/4846855567  101 in frame 2780 t=3.292s  147 message(s)
   tcp.stream 13   zoomiad20624799165rwg.iad.zoom.us  /wc/media/4846855567?mode=16  101 in frame 2824 t=3.853s  70 message(s)
@@ -167,7 +167,7 @@ sdp.media_attr contains "ssrc"
 With tshark:
 
 ```
-$ tshark -X lua_script:wireshark/webrtc-sdp_in_zoom.lua -r test-data/Zoom4-start.pcapng -Y sdp_in_zoom
+$ tshark -X lua_script:wireshark/webrtc-sdp_in_zoom.lua -r test-captures/zoom-signaling.pcapng -Y sdp_in_zoom
  2790 3.492741500 192.168.102.79 → 206.247.99.165 WebSocket/Zoom/JSON/SDP 643 WebSocket Binary [FIN] [MASKED], JSON [Zoom PC-DC offer]
  2794 3.597140200 206.247.99.165 → 192.168.102.79 WebSocket/Zoom/JSON/SDP 973 WebSocket Binary [FIN] , JSON [Zoom PC-DC answer]
  2848 4.013969300 192.168.102.79 → 206.247.99.165 WebSocket/Zoom/JSON 225 WebSocket Binary [FIN] [MASKED], JSON [Zoom PC-AUDIO pre-offer]
@@ -175,14 +175,14 @@ $ tshark -X lua_script:wireshark/webrtc-sdp_in_zoom.lua -r test-data/Zoom4-start
  2862 4.126840000 206.247.99.165 → 192.168.102.79 WebSocket/Zoom/JSON/SDP 191 WebSocket Binary [FIN] , JSON [Zoom PC-AUDIO answer]
  2869 4.152905200 192.168.102.79 → 206.247.99.165 WebSocket/Zoom/JSON 216 WebSocket Binary [FIN] [MASKED], JSON [Zoom PC-AUDIO confirm]
 
-$ tshark -X lua_script:wireshark/webrtc-sdp_in_zoom.lua -r test-data/Zoom4-start.pcapng -Y 'zoom_ws.ping.counter'
+$ tshark -X lua_script:wireshark/webrtc-sdp_in_zoom.lua -r test-captures/zoom-signaling.pcapng -Y 'zoom_ws.ping.counter'
  3002 7.042909400 192.168.102.79 → 206.247.99.165 WebSocket/Zoom 98 WebSocket Binary [FIN] [MASKED] [Zoom client ping #1]
  3004 7.146743900 206.247.99.165 → 192.168.102.79 WebSocket/Zoom 94 WebSocket Binary [FIN]  [Zoom server pong #1 rtt 103.8 ms]
  3005 7.156768400 206.247.99.165 → 192.168.102.79 WebSocket/Zoom 94 WebSocket Binary [FIN]  [Zoom server ping #1]
  3007 7.164005800 192.168.102.79 → 206.247.99.165 WebSocket/Zoom 98 WebSocket Binary [FIN] [MASKED] [Zoom client pong #1]
  ...
 
-$ tshark -2 -X lua_script:wireshark/webrtc-sdp_in_zoom.lua -r test-data/Zoom4-start.pcapng -Y sdp_in_zoom -O sdp_in_zoom,sdp
+$ tshark -2 -X lua_script:wireshark/webrtc-sdp_in_zoom.lua -r test-captures/zoom-signaling.pcapng -Y sdp_in_zoom -O sdp_in_zoom,sdp
 ```
 
 Use `-2` (two-pass) to get the *Answer in* link on the offer frames as well. The server's pings are linked to the client's pong, but no RTT is shown for them: at a capture point next to the client, that interval is only the client's response time.
