@@ -97,7 +97,7 @@ The output files can contain meeting IDs and passcodes, auth tokens, ICE passwor
 
 ### Wireshark plugins
 
-Tested to work with Wireshark 5.1rc0 (new LUA version)
+Updated to work with Wireshark 5.1rc0 (new LUA version)
 
 Copy the plugin to the *Personal Lua Plugins* folder (Help → About Wireshark → Folders), then Analyze → Reload Lua Plugins. All plugins need decrypted TLS; `webrtc-sdp_in_goto.lua` also needs WebSocket text dissected as JSON. They pass the SDP to Wireshark's built-in SDP dissector, so `sdp.*` filters work. With tshark, load a plugin with `-X lua_script:wireshark/<plugin>.lua`. Filters, extra protocols and tshark examples are in the product READMEs.
 
